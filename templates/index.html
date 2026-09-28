@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Leave & Task Management System</title>
+    <meta name="description" content="Enterprise Grade Employee Leave & Task Management Platform with Role-Based Access Control and Analytics">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="dark-theme">
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- AUTH OVERLAY / LOGIN MODAL -->
+    <div id="auth-modal-overlay" class="modal-overlay active">
+        <div class="auth-card glassmorphic">
+            <div class="auth-header">
+                <div class="brand-logo">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>EmpowerHub</span>
+                </div>
+                <h2>Employee & Task Portal</h2>
+                <p>Secure Enterprise Workforce Management</p>
+            </div>
+
+            <!-- Quick Demo Login Switcher -->
+            <div class="demo-personas">
+                <span class="persona-label"><i class="fa-solid fa-bolt"></i> Quick Demo Login:</span>
+                <div class="persona-buttons">
+                    <button type="button" class="btn-persona persona-admin" onclick="switchPersona('admin@company.com', 'Admin@123')">
+                        <i class="fa-solid fa-user-shield"></i> Admin
+                    </button>
+                    <button type="button" class="btn-persona persona-manager" onclick="switchPersona('manager@company.com', 'Manager@123')">
+                        <i class="fa-solid fa-user-tie"></i> Manager
+                    </button>
+                    <button type="button" class="btn-persona persona-employee" onclick="switchPersona('employee@company.com', 'Employee@123')">
+                        <i class="fa-solid fa-user-gear"></i> Employee
+                    </button>
+                </div>
+            </div>
+
+            <!-- Auth Form Switch Tabs -->
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab-btn active" id="tab-btn-login" onclick="toggleAuthTab('login')">Sign In</button>
+                <button type="button" class="auth-tab-btn" id="tab-btn-register" onclick="toggleAuthTab('register')">Register Account</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form active">
+                <div class="input-group">
+                    <label for="login-email"><i class="fa-solid fa-envelope"></i> Email Address</label>
+                    <input type="email" id="login-email" required placeholder="e.g. employee@company.com" value="admin@company.com">
+                </div>
+                <div class="input-group">
+                    <label for="login-password"><i class="fa-solid fa-lock"></i> Password</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" value="Admin@123">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">
+                    <span>Sign In to Dashboard</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+
+            <!-- Registration Form -->
+            <form id="register-form" class="auth-form hidden">
+                <div class="input-group">
+                    <label for="reg-name"><i class="fa-solid fa-user"></i> Full Name</label>
+                    <input type="text" id="reg-name" placeholder="e.g. John Doe">
+                </div>
+                <div class="input-group">
+                    <label for="reg-email"><i class="fa-solid fa-envelope"></i> Work Email</label>
+                    <input type="email" id="reg-email" placeholder="john.doe@company.com">
+                </div>
+                <div class="input-group">
+                    <label for="reg-password"><i class="fa-solid fa-lock"></i> Password</label>
+                    <input type="password" id="reg-password" placeholder="Minimum 6 characters">
+                </div>
+                <div class="input-row">
+                    <div class="input-group">
+                        <label for="reg-department"><i class="fa-solid fa-building"></i> Department</label>
+                        <select id="reg-department">
+                            <option value="Engineering">Engineering</option>
+                            <option value="Design">Design</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Sales">Sales</option>
+                            <option value="HR & Management">HR & Management</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="reg-role"><i class="fa-solid fa-shield-halved"></i> Role</label>
+                        <select id="reg-role">
+                            <option value="employee">Employee</option>
+                            <option value="manager">Manager</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="reg-designation"><i class="fa-solid fa-id-badge"></i> Job Title / Designation</label>
+                    <input type="text" id="reg-designation" placeholder="e.g. Senior Frontend Developer">
+                </div>
+                <button type="submit" class="btn btn-success btn-block">
+                    <span>Create Employee Account</span>
+                    <i class="fa-solid fa-user-plus"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP WRAPPER -->
+    <div id="app-container" class="app-layout hidden">
+        <!-- SIDEBAR NAVIGATION -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-title">EmpowerHub</span>
+                    <span class="brand-subtitle">Enterprise Suite</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="leave" onclick="switchTab('leave')">
+                    <i class="fa-solid fa-calendar-check"></i>
+                    <span>Leave Management</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="tasks" onclick="switchTab('tasks')">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Task Workspace</span>
+                </a>
+                <a href="#" class="nav-item manager-admin-only hidden" data-tab="leave-approvals" onclick="switchTab('leave-approvals')">
+                    <i class="fa-solid fa-clipboard-check"></i>
+                    <span>Leave Approvals</span>
+                    <span id="badge-pending-leaves" class="badge badge-accent">0</span>
+                </a>
+                <a href="#" class="nav-item admin-only hidden" data-tab="employees" onclick="switchTab('employees')">
+                    <i class="fa-solid fa-users-gear"></i>
+                    <span>Employee Directory</span>
+                </a>
+                <a href="#" class="nav-item manager-admin-only hidden" data-tab="reports" onclick="switchTab('reports')">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <span>Reports & Analytics</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-user-card">
+                <img id="sidebar-user-avatar" src="" alt="User Avatar" class="user-avatar-sm">
+                <div class="user-info-text">
+                    <div id="sidebar-user-name" class="user-name">Loading...</div>
+                    <div id="sidebar-user-role" class="user-role-badge">Employee</div>
+                </div>
+                <button type="button" class="btn-icon" title="Log Out" onclick="logout()">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="main-content">
+            <!-- TOP NAVBAR -->
+            <header class="top-header">
+                <div class="header-left">
+                    <h1 id="page-title">Workspace Dashboard</h1>
+                    <p id="page-subtitle" class="text-muted">Welcome back to your leave and task control panel.</p>
+                </div>
+
+                <div class="header-right">
+                    <!-- Notification Dropdown -->
+                    <div class="header-action notification-wrapper">
+                        <button type="button" class="btn-icon-bg" id="btn-notifications" onclick="toggleNotifications()">
+                            <i class="fa-solid fa-bell"></i>
+                            <span id="notification-count-badge" class="badge-dot hidden"></span>
+                        </button>
+
+                        <div id="notifications-dropdown" class="dropdown-menu notifications-dropdown hidden">
+                            <div class="dropdown-header">
+                                <h3>Notifications</h3>
+                                <button type="button" class="btn-text" onclick="markAllNotificationsRead()">Mark all as read</button>
+                            </div>
+                            <div id="notifications-list" class="notifications-list">
+                                <div class="empty-state">No new notifications</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Profile Menu Button -->
+                    <div class="header-action profile-wrapper">
+                        <button type="button" class="btn-profile" onclick="openProfileModal()">
+                            <img id="header-user-avatar" src="" alt="Avatar" class="user-avatar-xs">
+                            <span id="header-user-name">User</span>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- CONTENT SECTIONS -->
+
+            <!-- SECTION 1: DASHBOARD -->
+            <section id="section-dashboard" class="tab-content active">
+                <!-- Welcome Banner -->
+                <div class="welcome-banner glassmorphic">
+                    <div class="welcome-text">
+                        <h2>Hello, <span id="dash-greeting-name">Employee</span> 👋</h2>
+                        <p>Here is your daily activity summary, upcoming leave balance, and pending task queue.</p>
+                    </div>
+                    <div class="welcome-actions">
+                        <button type="button" class="btn btn-primary" onclick="openApplyLeaveModal()">
+                            <i class="fa-solid fa-plus"></i> Apply for Leave
+                        </button>
+                        <button type="button" class="btn btn-secondary manager-admin-only hidden" onclick="openCreateTaskModal()">
+                            <i class="fa-solid fa-tasks"></i> Assign New Task
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Overview Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card glassmorphic">
+                        <div class="stat-icon icon-emerald">
+                            <i class="fa-solid fa-umbrella-beach"></i>
+                        </div>
+                        <div class="stat-details">
+                            <span class="stat-label">Annual Leave Balance</span>
+                            <span id="stat-annual-leave" class="stat-value">0 / 20 Days</span>
+                            <span class="stat-sub text-emerald">Available Remaining</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card glassmorphic">
+                        <div class="stat-icon icon-amber">
+                            <i class="fa-solid fa-briefcase-medical"></i>
+                        </div>
+                        <div class="stat-details">
+                            <span class="stat-label">Sick Leave Balance</span>
+                            <span id="stat-sick-leave" class="stat-value">0 / 10 Days</span>
+                            <span class="stat-sub text-amber">Available Remaining</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card glassmorphic">
+                        <div class="stat-icon icon-violet">
+                            <i class="fa-solid fa-list-check"></i>
+                        </div>
+                        <div class="stat-details">
+                            <span class="stat-label">Assigned Active Tasks</span>
+                            <span id="stat-active-tasks" class="stat-value">0 Tasks</span>
+                            <span class="stat-sub text-violet">In Progress & To Do</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card glassmorphic">
+                        <div class="stat-icon icon-rose">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <div class="stat-details">
+                            <span class="stat-label">Pending Approvals</span>
+                            <span id="stat-pending-leaves" class="stat-value">0 Requests</span>
+                            <span class="stat-sub text-rose">Awaiting Review</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Content Split -->
+                <div class="dashboard-split">
+                    <!-- Left: Recent Assigned Tasks -->
+                    <div class="dashboard-widget glassmorphic">
+                        <div class="widget-header">
+                            <h3><i class="fa-solid fa-clipboard-list text-primary"></i> Priority Tasks Assigned</h3>
+                            <button type="button" class="btn-text" onclick="switchTab('tasks')">View Workspace →</button>
+                        </div>
+                        <div id="dash-recent-tasks" class="widget-body">
+                            <div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading tasks...</div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Leave Balance & Recent Requests -->
+                    <div class="dashboard-widget glassmorphic">
+                        <div class="widget-header">
+                            <h3><i class="fa-solid fa-plane-departure text-emerald"></i> Recent Leave Applications</h3>
+                            <button type="button" class="btn-text" onclick="switchTab('leave')">Leave History →</button>
+                        </div>
+                        <div id="dash-recent-leaves" class="widget-body">
+                            <div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading leaves...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 2: LEAVE MANAGEMENT -->
+            <section id="section-leave" class="tab-content hidden">
+                <div class="section-toolbar">
+                    <div class="toolbar-title">
+                        <h2>Leave Center & Balances</h2>
+                        <p class="text-muted">Track your leave allocations, apply for time off, and monitor request statuses.</p>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="openApplyLeaveModal()">
+                        <i class="fa-solid fa-plus-circle"></i> Apply For Leave
+                    </button>
+                </div>
+
+                <!-- Leave Balances Cards -->
+                <div class="leave-balance-grid">
+                    <div class="balance-card glassmorphic border-emerald">
+                        <div class="balance-header">
+                            <span class="leave-type-title">Annual Leave</span>
+                            <i class="fa-solid fa-umbrella-beach text-emerald"></i>
+                        </div>
+                        <div class="balance-body">
+                            <div class="balance-num">
+                                <span id="bal-annual-rem">0</span>
+                                <span class="balance-total">/ <span id="bal-annual-alloc">20</span> Days</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div id="bar-annual-leave" class="progress-fill fill-emerald" style="width: 0%;"></div>
+                            </div>
+                            <span class="balance-used-text"><span id="bal-annual-used">0</span> days used</span>
+                        </div>
+                    </div>
+
+                    <div class="balance-card glassmorphic border-amber">
+                        <div class="balance-header">
+                            <span class="leave-type-title">Sick Leave</span>
+                            <i class="fa-solid fa-briefcase-medical text-amber"></i>
+                        </div>
+                        <div class="balance-body">
+                            <div class="balance-num">
+                                <span id="bal-sick-rem">0</span>
+                                <span class="balance-total">/ <span id="bal-sick-alloc">10</span> Days</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div id="bar-sick-leave" class="progress-fill fill-amber" style="width: 0%;"></div>
+                            </div>
+                            <span class="balance-used-text"><span id="bal-sick-used">0</span> days used</span>
+                        </div>
+                    </div>
+
+                    <div class="balance-card glassmorphic border-violet">
+                        <div class="balance-header">
+                            <span class="leave-type-title">Casual Leave</span>
+                            <i class="fa-solid fa-mug-hot text-violet"></i>
+                        </div>
+                        <div class="balance-body">
+                            <div class="balance-num">
+                                <span id="bal-casual-rem">0</span>
+                                <span class="balance-total">/ <span id="bal-casual-alloc">8</span> Days</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div id="bar-casual-leave" class="progress-fill fill-violet" style="width: 0%;"></div>
+                            </div>
+                            <span class="balance-used-text"><span id="bal-casual-used">0</span> days used</span>
+                        </div>
+                    </div>
+
+                    <div class="balance-card glassmorphic border-cyan">
+                        <div class="balance-header">
+                            <span class="leave-type-title">Maternity / Paternity</span>
+                            <i class="fa-solid fa-baby text-cyan"></i>
+                        </div>
+                        <div class="balance-body">
+                            <div class="balance-num">
+                                <span id="bal-maternity-rem">0</span>
+                                <span class="balance-total">/ <span id="bal-maternity-alloc">90</span> Days</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div id="bar-maternity-leave" class="progress-fill fill-cyan" style="width: 0%;"></div>
+                            </div>
+                            <span class="balance-used-text"><span id="bal-maternity-used">0</span> days used</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leave History Table -->
+                <div class="table-card glassmorphic margin-top-lg">
+                    <div class="table-header">
+                        <h3>My Leave History</h3>
+                        <div class="filter-group">
+                            <select id="filter-leave-status" onchange="renderLeaveHistoryTable()">
+                                <option value="all">All Statuses</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Leave Type</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Duration</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                    <th>Reviewer & Comments</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leave-history-tbody">
+                                <tr><td colspan="8" class="text-center p-4">Loading leave records...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 3: LEAVE APPROVALS (MANAGER & ADMIN) -->
+            <section id="section-leave-approvals" class="tab-content hidden">
+                <div class="section-toolbar">
+                    <div class="toolbar-title">
+                        <h2>Leave Approval Queue</h2>
+                        <p class="text-muted">Review, approve, or decline employee leave applications.</p>
+                    </div>
+                    <div class="filter-tabs">
+                        <button type="button" class="filter-btn active" onclick="filterLeaveApprovals('pending', this)">Pending Review</button>
+                        <button type="button" class="filter-btn" onclick="filterLeaveApprovals('approved', this)">Approved</button>
+                        <button type="button" class="filter-btn" onclick="filterLeaveApprovals('rejected', this)">Rejected</button>
+                        <button type="button" class="filter-btn" onclick="filterLeaveApprovals('all', this)">All Requests</button>
+                    </div>
+                </div>
+
+                <div class="table-card glassmorphic">
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Department</th>
+                                    <th>Leave Details</th>
+                                    <th>Dates</th>
+                                    <th>Duration</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                    <th>Actions / Comments</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leave-approval-tbody">
+                                <tr><td colspan="8" class="text-center p-4">Loading approval requests...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 4: TASK WORKSPACE -->
+            <section id="section-tasks" class="tab-content hidden">
+                <div class="section-toolbar">
+                    <div class="toolbar-title">
+                        <h2>Task Workspace</h2>
+                        <p class="text-muted">Manage employee assignments, prioritize workloads, and track progress.</p>
+                    </div>
+                    <div class="toolbar-actions">
+                        <div class="view-toggle-btns">
+                            <button type="button" class="btn-toggle active" id="btn-view-kanban" onclick="switchTaskView('kanban')">
+                                <i class="fa-solid fa-border-all"></i> Kanban Board
+                            </button>
+                            <button type="button" class="btn-toggle" id="btn-view-list" onclick="switchTaskView('list')">
+                                <i class="fa-solid fa-list-ul"></i> List View
+                            </button>
+                        </div>
+                        <button type="button" class="btn btn-primary manager-admin-only hidden" onclick="openCreateTaskModal()">
+                            <i class="fa-solid fa-plus-circle"></i> Create & Assign Task
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Task Filters Bar -->
+                <div class="filters-bar glassmorphic">
+                    <div class="filter-item">
+                        <label><i class="fa-solid fa-filter"></i> Priority:</label>
+                        <select id="filter-task-priority" onchange="loadTasks()">
+                            <option value="all">All Priorities</option>
+                            <option value="urgent">Urgent</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-item">
+                        <label><i class="fa-solid fa-user-tag"></i> Scope:</label>
+                        <select id="filter-task-scope" onchange="loadTasks()">
+                            <option value="all">All Tasks</option>
+                            <option value="my_tasks">Assigned To Me</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-item search-item">
+                        <input type="text" id="filter-task-search" placeholder="Search tasks by title or assignee..." oninput="filterTasksLocal()">
+                    </div>
+                </div>
+
+                <!-- Task Views -->
+                <!-- 1. KANBAN BOARD VIEW -->
+                <div id="task-view-kanban" class="kanban-board">
+                    <!-- Column 1: To Do -->
+                    <div class="kanban-col">
+                        <div class="col-header col-todo">
+                            <span class="col-title"><i class="fa-solid fa-circle-dot"></i> To Do</span>
+                            <span id="count-todo" class="count-badge">0</span>
+                        </div>
+                        <div id="kanban-body-to_do" class="kanban-cards-container"></div>
+                    </div>
+
+                    <!-- Column 2: In Progress -->
+                    <div class="kanban-col">
+                        <div class="col-header col-progress">
+                            <span class="col-title"><i class="fa-solid fa-spinner"></i> In Progress</span>
+                            <span id="count-progress" class="count-badge">0</span>
+                        </div>
+                        <div id="kanban-body-in_progress" class="kanban-cards-container"></div>
+                    </div>
+
+                    <!-- Column 3: In Review -->
+                    <div class="kanban-col">
+                        <div class="col-header col-review">
+                            <span class="col-title"><i class="fa-solid fa-eye"></i> In Review</span>
+                            <span id="count-review" class="count-badge">0</span>
+                        </div>
+                        <div id="kanban-body-in_review" class="kanban-cards-container"></div>
+                    </div>
+
+                    <!-- Column 4: Completed -->
+                    <div class="kanban-col">
+                        <div class="col-header col-completed">
+                            <span class="col-title"><i class="fa-solid fa-circle-check"></i> Completed</span>
+                            <span id="count-completed" class="count-badge">0</span>
+                        </div>
+                        <div id="kanban-body-completed" class="kanban-cards-container"></div>
+                    </div>
+                </div>
+
+                <!-- 2. TASK LIST VIEW -->
+                <div id="task-view-list" class="table-card glassmorphic hidden">
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Task Title</th>
+                                    <th>Assignee</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Progress</th>
+                                    <th>Due Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="task-list-tbody">
+                                <tr><td colspan="7" class="text-center p-4">Loading tasks...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 5: EMPLOYEE DIRECTORY (ADMIN ONLY) -->
+            <section id="section-employees" class="tab-content hidden">
+                <div class="section-toolbar">
+                    <div class="toolbar-title">
+                        <h2>Employee Directory & RBAC Management</h2>
+                        <p class="text-muted">Manage employee records, roles, departments, and access credentials.</p>
+                    </div>
+                    <button type="button" class="btn btn-success" onclick="openAddEmployeeModal()">
+                        <i class="fa-solid fa-user-plus"></i> Add New Employee
+                    </button>
+                </div>
+
+                <div class="table-card glassmorphic">
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Email & Phone</th>
+                                    <th>Department</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Leave Usage</th>
+                                    <th>Manage Access</th>
+                                </tr>
+                            </thead>
+                            <tbody id="employee-list-tbody">
+                                <tr><td colspan="7" class="text-center p-4">Loading employee directory...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 6: REPORTS & ANALYTICS (MANAGER & ADMIN) -->
+            <section id="section-reports" class="tab-content hidden">
+                <div class="section-toolbar">
+                    <div class="toolbar-title">
+                        <h2>Reports & System Analytics</h2>
+                        <p class="text-muted">Generate organization productivity reports and download leave/task datasets.</p>
+                    </div>
+                    <div class="export-btns">
+                        <button type="button" class="btn btn-outline" onclick="exportReport('leave', 'csv')">
+                            <i class="fa-solid fa-file-csv"></i> Export Leave CSV
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="exportReport('task', 'csv')">
+                            <i class="fa-solid fa-file-csv"></i> Export Task CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Analytics Metrics Breakdown -->
+                <div class="analytics-grid">
+                    <div class="analytics-card glassmorphic">
+                        <h3><i class="fa-solid fa-chart-bar text-primary"></i> Team Workforce Distribution</h3>
+                        <div id="analytics-dept-chart" class="chart-container">
+                            <!-- Rendered dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="analytics-card glassmorphic">
+                        <h3><i class="fa-solid fa-chart-donut text-emerald"></i> Task Completion Overview</h3>
+                        <div id="analytics-task-chart" class="chart-container">
+                            <!-- Rendered dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MODAL DIALOGS -->
+
+    <!-- MODAL 1: APPLY FOR LEAVE -->
+    <div id="modal-apply-leave" class="modal-overlay hidden">
+        <div class="modal-card glassmorphic">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-calendar-plus text-primary"></i> Apply for Leave</h3>
+                <button type="button" class="btn-close" onclick="closeModal('modal-apply-leave')">&times;</button>
+            </div>
+            <form id="form-apply-leave" onsubmit="submitLeaveApplication(event)">
+                <div class="modal-body">
+                    <div class="input-group">
+                        <label for="leave-type-select"><i class="fa-solid fa-tag"></i> Leave Type</label>
+                        <select id="leave-type-select" required onchange="calculateLeaveDays()">
+                            <option value="annual">Annual Leave (Vacation)</option>
+                            <option value="sick">Sick Leave (Medical)</option>
+                            <option value="casual">Casual Leave (Personal)</option>
+                            <option value="maternity">Maternity / Paternity Leave</option>
+                            <option value="unpaid">Unpaid Leave</option>
+                        </select>
+                    </div>
+
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="leave-start-date"><i class="fa-solid fa-calendar"></i> Start Date</label>
+                            <input type="date" id="leave-start-date" required onchange="calculateLeaveDays()">
+                        </div>
+                        <div class="input-group">
+                            <label for="leave-end-date"><i class="fa-solid fa-calendar"></i> End Date</label>
+                            <input type="date" id="leave-end-date" required onchange="calculateLeaveDays()">
+                        </div>
+                    </div>
+
+                    <div class="days-summary-badge glassmorphic">
+                        <span>Total Requested Duration:</span>
+                        <strong id="leave-calculated-days">0 Days</strong>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="leave-reason"><i class="fa-solid fa-align-left"></i> Reason for Leave</label>
+                        <textarea id="leave-reason" rows="3" required placeholder="Provide clear reason for absence..."></textarea>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="leave-emergency-contact"><i class="fa-solid fa-phone"></i> Emergency Contact Number</label>
+                        <input type="text" id="leave-emergency-contact" placeholder="e.g. +1 555-0199">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-apply-leave')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Application</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: CREATE / ASSIGN TASK -->
+    <div id="modal-create-task" class="modal-overlay hidden">
+        <div class="modal-card glassmorphic">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-plus-circle text-primary"></i> Create & Assign Task</h3>
+                <button type="button" class="btn-close" onclick="closeModal('modal-create-task')">&times;</button>
+            </div>
+            <form id="form-create-task" onsubmit="submitCreateTask(event)">
+                <div class="modal-body">
+                    <div class="input-group">
+                        <label for="task-title-input"><i class="fa-solid fa-heading"></i> Task Title</label>
+                        <input type="text" id="task-title-input" required placeholder="e.g. Develop API Authentication Endpoint">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="task-desc-input"><i class="fa-solid fa-align-left"></i> Task Description</label>
+                        <textarea id="task-desc-input" rows="3" placeholder="Detailed scope, requirements, and deliverables..."></textarea>
+                    </div>
+
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="task-assignee-select"><i class="fa-solid fa-user-check"></i> Assign To Employee</label>
+                            <select id="task-assignee-select" required>
+                                <option value="">Loading employees...</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="task-priority-select"><i class="fa-solid fa-flag"></i> Priority</label>
+                            <select id="task-priority-select" required>
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="task-duedate-input"><i class="fa-solid fa-clock"></i> Due Date</label>
+                            <input type="date" id="task-duedate-input" required>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="task-dept-input"><i class="fa-solid fa-building"></i> Department</label>
+                            <select id="task-dept-input">
+                                <option value="Engineering">Engineering</option>
+                                <option value="Design">Design</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Sales">Sales</option>
+                                <option value="HR & Management">HR & Management</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create-task')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Assign Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: TASK DETAILS & STATUS UPDATE -->
+    <div id="modal-task-details" class="modal-overlay hidden">
+        <div class="modal-card glassmorphic modal-lg">
+            <div class="modal-header">
+                <div>
+                    <span id="task-detail-priority-badge" class="badge badge-warning">Medium</span>
+                    <h3 id="task-detail-title" class="margin-top-xs">Task Title</h3>
+                </div>
+                <button type="button" class="btn-close" onclick="closeModal('modal-task-details')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="task-detail-desc" class="text-muted">Task Description</p>
+                
+                <div class="task-detail-meta-grid margin-top-md">
+                    <div>
+                        <span class="meta-label">Assignee:</span>
+                        <strong id="task-detail-assignee">Employee</strong>
+                    </div>
+                    <div>
+                        <span class="meta-label">Assigned By:</span>
+                        <strong id="task-detail-creator">Manager</strong>
+                    </div>
+                    <div>
+                        <span class="meta-label">Due Date:</span>
+                        <strong id="task-detail-duedate">2026-10-10</strong>
+                    </div>
+                </div>
+
+                <!-- Interactive Progress & Status Controls -->
+                <div class="task-status-control-box glassmorphic margin-top-lg">
+                    <h4><i class="fa-solid fa-sliders text-primary"></i> Update Work Progress</h4>
+                    
+                    <div class="status-btn-group margin-top-sm">
+                        <button type="button" class="btn-status-choice" id="btn-status-to_do" onclick="selectTaskStatus('to_do')">To Do</button>
+                        <button type="button" class="btn-status-choice" id="btn-status-in_progress" onclick="selectTaskStatus('in_progress')">In Progress</button>
+                        <button type="button" class="btn-status-choice" id="btn-status-in_review" onclick="selectTaskStatus('in_review')">In Review</button>
+                        <button type="button" class="btn-status-choice" id="btn-status-completed" onclick="selectTaskStatus('completed')">Completed</button>
+                    </div>
+
+                    <div class="slider-group margin-top-md">
+                        <div class="slider-header">
+                            <span>Completion Percent:</span>
+                            <strong id="slider-percent-val">0%</strong>
+                        </div>
+                        <input type="range" id="task-progress-slider" min="0" max="100" value="0" oninput="updateSliderVal(this.value)">
+                    </div>
+
+                    <button type="button" class="btn btn-emerald margin-top-md" onclick="saveTaskStatusUpdate()">
+                        <i class="fa-solid fa-save"></i> Save Progress Update
+                    </button>
+                </div>
+
+                <!-- Comments Thread -->
+                <div class="comments-section margin-top-lg">
+                    <h4><i class="fa-solid fa-comments"></i> Task Comments & Updates</h4>
+                    
+                    <form id="form-add-comment" onsubmit="submitTaskComment(event)" class="margin-top-sm">
+                        <div class="input-row">
+                            <input type="text" id="input-task-comment" required placeholder="Write a comment or status update..." class="flex-grow">
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Post</button>
+                        </div>
+                    </form>
+
+                    <div id="task-comments-list" class="comments-list margin-top-md">
+                        <div class="empty-state">No comments yet.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger manager-admin-only hidden" id="btn-delete-task" onclick="deleteCurrentTask()">
+                    <i class="fa-solid fa-trash"></i> Delete Task
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-task-details')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4: USER PROFILE & SECURITY -->
+    <div id="modal-user-profile" class="modal-overlay hidden">
+        <div class="modal-card glassmorphic">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-user-gear text-primary"></i> Account Settings</h3>
+                <button type="button" class="btn-close" onclick="closeModal('modal-user-profile')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-update-profile" onsubmit="submitProfileUpdate(event)">
+                    <div class="input-group">
+                        <label><i class="fa-solid fa-user"></i> Full Name</label>
+                        <input type="text" id="prof-name" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label><i class="fa-solid fa-phone"></i> Phone Number</label>
+                        <input type="text" id="prof-phone">
+                    </div>
+
+                    <div class="input-group">
+                        <label><i class="fa-solid fa-id-badge"></i> Designation</label>
+                        <input type="text" id="prof-designation">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary margin-top-xs">Update Profile Information</button>
+                </form>
+
+                <hr class="divider margin-top-md margin-bottom-md">
+
+                <form id="form-change-password" onsubmit="submitPasswordChange(event)">
+                    <h4>Change Password</h4>
+                    <div class="input-group margin-top-xs">
+                        <label><i class="fa-solid fa-lock"></i> Current Password</label>
+                        <input type="password" id="pw-current" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label><i class="fa-solid fa-key"></i> New Password</label>
+                        <input type="password" id="pw-new" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-secondary">Change Password</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: ADD EMPLOYEE (ADMIN) -->
+    <div id="modal-add-employee" class="modal-overlay hidden">
+        <div class="modal-card glassmorphic">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-user-plus text-success"></i> Add New Employee</h3>
+                <button type="button" class="btn-close" onclick="closeModal('modal-add-employee')">&times;</button>
+            </div>
+            <form id="form-add-employee" onsubmit="submitAddEmployeeAdmin(event)">
+                <div class="modal-body">
+                    <div class="input-group">
+                        <label for="admin-emp-name">Full Name</label>
+                        <input type="text" id="admin-emp-name" required placeholder="e.g. Michael Scott">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="admin-emp-email">Email Address</label>
+                        <input type="email" id="admin-emp-email" required placeholder="e.g. michael@company.com">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="admin-emp-password">Default Password</label>
+                        <input type="text" id="admin-emp-password" required value="Welcome@123">
+                    </div>
+
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="admin-emp-role">Role</label>
+                            <select id="admin-emp-role">
+                                <option value="employee">Employee</option>
+                                <option value="manager">Manager</option>
+                                <option value="admin">Administrator</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="admin-emp-dept">Department</label>
+                            <select id="admin-emp-dept">
+                                <option value="Engineering">Engineering</option>
+                                <option value="Design">Design</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Sales">Sales</option>
+                                <option value="HR & Management">HR & Management</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="admin-emp-designation">Designation</label>
+                        <input type="text" id="admin-emp-designation" placeholder="e.g. Senior Regional Manager">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-employee')">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/leave.js"></script>
+    <script src="/static/js/task.js"></script>
+    <script src="/static/js/admin.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
