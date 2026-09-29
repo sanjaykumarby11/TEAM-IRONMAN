@@ -1,15 +1,15 @@
-# Python virtual environment
-.venv/
-venv/
-ENV/
-
-# Python bytecode & cache
 __pycache__/
 *.py[cod]
 *$py.class
-
-# macOS system files
+.venv/
+env/
+venv/
+*.db
+*.sqlite3
+system.db
+node_modules/
+dist/
 .DS_Store
-
-# Temporary logs & database
-*.log
+.env
+backend/uploads/*
+!backend/uploads/.gitkeep
