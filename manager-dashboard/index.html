@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Leave Dashboard - Leave Flow</title>
+    <meta name="description" content="Dashboard for managers to review leave requests, monitor team balances, track upcoming absences, and coordinate approvals.">
+    <link rel="stylesheet" href="index.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Main Navigation Header -->
+        <header class="header">
+            <div class="brand-group">
+                <div class="brand-logo">✈️</div>
+                <div>
+                    <h1>Manager Dashboard</h1>
+                    <span class="badge-role">Admin & People Operations</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <a href="#availability-section" class="nav-jump-btn">
+                    <span>📅 Availability Calendar</span>
+                </a>
+                <a href="#tasks-section" class="nav-jump-btn">
+                    <span>📋 Task Planning</span>
+                </a>
+                <a href="#settings-section" class="nav-jump-btn">
+                    <span>⚙️ Org Settings</span>
+                </a>
+                <a href="employee.html" class="nav-portal-btn">
+                    <span>Employee Portal</span>
+                    <span class="nav-arrow">&rarr;</span>
+                </a>
+                <div class="user-profile">
+                    <img src="https://i.pravatar.cc/150?img=11" alt="Manager Profile" class="avatar">
+                    <div class="user-details">
+                        <span class="user-name">Jane Admin</span>
+                        <span class="user-sub">Engineering Lead</span>
+                    </div>
+                </div>
+                
+                <div class="notifications-wrapper" style="position: relative; margin-left: 1rem;">
+                    <button id="notif-btn" class="nav-jump-btn" style="position: relative; background: transparent; padding: 0.5rem; font-size: 1.2rem;">
+                        🔔
+                        <span id="notif-badge" class="badge-count" style="position: absolute; top: 0; right: 0; transform: translate(50%, -50%); display: none; padding: 0.15rem 0.4rem; font-size: 0.7rem; background: var(--danger-color); color: white;">0</span>
+                    </button>
+                    <!-- Notification Dropdown -->
+                    <div id="notif-dropdown" class="notif-dropdown" style="display: none; position: absolute; right: 0; top: 100%; width: 320px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 100;">
+                        <div style="padding: 1rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; font-size: 1rem;">Notifications</h3>
+                            <button id="mark-all-read-btn" class="btn btn-sm btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Mark all read</button>
+                        </div>
+                        <div id="notif-list" style="max-height: 350px; overflow-y: auto;">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <main class="main-content">
+            <!-- Stats Counters -->
+            <div class="stats-cards">
+                <div class="card pending-card" id="card-pending">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-info">
+                        <h3>Pending Review</h3>
+                        <p id="pending-count">0</p>
+                    </div>
+                </div>
+                <div class="card approved-card" id="card-approved">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-info">
+                        <h3>Approved</h3>
+                        <p id="approved-count">0</p>
+                    </div>
+                </div>
+                <div class="card rejected-card" id="card-rejected">
+                    <div class="stat-icon">❌</div>
+                    <div class="stat-info">
+                        <h3>Rejected</h3>
+                        <p id="rejected-count">0</p>
+                    </div>
+                </div>
+                <div class="card upcoming-card" id="card-upcoming">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-info">
+                        <h3>Upcoming Absences</h3>
+                        <p id="upcoming-count">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team Availability & Coverage Calendar Section -->
+            <section class="section calendar-section" id="availability-section">
+                <div class="section-header">
+                    <div>
+                        <span class="section-tag">Coverage & Work Scheduling</span>
+                        <h2>Team Availability Calendar</h2>
+                        <p class="section-sub">Interactive availability matrix and coverage tracker to plan sprint capacity and prevent understaffing</p>
+                    </div>
+                    
+                    <div class="calendar-controls">
+                        <!-- Month Navigation -->
+                        <div class="month-nav-group">
+                            <button class="cal-nav-btn" id="cal-prev-month" title="Previous Month">&larr;</button>
+                            <span class="cal-month-label" id="cal-month-display">October 2026</span>
+                            <button class="cal-nav-btn" id="cal-next-month" title="Next Month">&rarr;</button>
+                            <button class="cal-nav-btn cal-today-btn" id="cal-today-btn">Today</button>
+                        </div>
+                        
+                        <!-- View Toggle: Timeline vs Month Grid -->
+                        <div class="view-toggle-group">
+                            <button class="view-btn active" id="view-timeline-btn" data-view="timeline">
+                                <span>📊 Matrix View</span>
+                            </button>
+                            <button class="view-btn" id="view-month-btn" data-view="month">
+                                <span>📅 Month Grid</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coverage Health Summary Bar -->
+                <div class="coverage-summary-bar" id="coverage-summary-bar">
+                    <!-- Dynamic stats: Total capacity, full coverage days, reduced coverage alert -->
+                </div>
+
+                <!-- Calendar View Container -->
+                <div class="calendar-container">
+                    <!-- Timeline Matrix View -->
+                    <div id="calendar-timeline-view" class="calendar-view-pane active">
+                        <div class="timeline-scroll-wrapper" id="timeline-wrapper">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Month Grid View -->
+                    <div id="calendar-month-view" class="calendar-view-pane" style="display: none;">
+                        <div class="month-grid-calendar" id="month-grid-wrapper">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calendar Legend -->
+                <div class="calendar-legend">
+                    <div class="legend-item">
+                        <span class="legend-dot dot-vacation"></span>
+                        <span>Vacation (Approved)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot dot-sick"></span>
+                        <span>Sick Leave (Approved)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot dot-personal"></span>
+                        <span>Personal Leave (Approved)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot dot-pending"></span>
+                        <span>Pending Request (Striped)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot dot-low-coverage"></span>
+                        <span>Reduced Coverage Alert</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Upcoming Team Absences Widget -->
+            <section class="section upcoming-section">
+                <div class="section-header">
+                    <div>
+                        <h2>Upcoming Team Absences</h2>
+                        <p class="section-sub">Scheduled and active leaves across your direct reports for easy capacity planning</p>
+                    </div>
+                    <span class="badge-count" id="upcoming-badge">0 Scheduled</span>
+                </div>
+                <div class="upcoming-grid" id="upcoming-list">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </section>
+
+            <!-- Team Entitlements & Profiles Directory -->
+            <section class="section team-section">
+                <div class="section-header">
+                    <div>
+                        <h2>Team Profiles & Entitlements</h2>
+                        <p class="section-sub">Overview of available leave quotas and leave records per employee</p>
+                    </div>
+                </div>
+                <div class="team-grid" id="team-list">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </section>
+
+            <!-- Task Planning & Assignment Section -->
+            <section class="section tasks-section" id="tasks-section">
+                <div class="section-header">
+                    <div>
+                        <h2>Task Planning & Assignment</h2>
+                        <p class="section-sub">Assign tasks to team members and prevent scheduling conflicts with planned leaves</p>
+                    </div>
+                    <button class="btn btn-primary" id="new-task-btn">+ Assign New Task</button>
+                </div>
+                <div class="task-list" id="task-list">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </section>
+
+            <!-- Requests Review Section -->
+            <section class="section requests-section">
+                <div class="section-header">
+                    <div>
+                        <h2>Leave Requests & History</h2>
+                        <p class="section-sub">Review incoming requests, submit comments, or view audit trails</p>
+                    </div>
+                    <div class="filters" id="filters-container">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="pending">Pending</button>
+                        <button class="filter-btn" data-filter="approved">Approved</button>
+                        <button class="filter-btn" data-filter="rejected">Rejected</button>
+                    </div>
+                </div>
+                
+                <div class="request-list" id="request-list">
+                    <!-- JavaScript will populate this list -->
+                </div>
+            </section>
+
+            <!-- Organization Settings Section -->
+            <section class="section settings-section" id="settings-section">
+                <div class="section-header">
+                    <div>
+                        <h2>Organization Leave Policies</h2>
+                        <p class="section-sub">Configure leave types, approval rules, and accrual policies</p>
+                    </div>
+                </div>
+                
+                <div class="settings-grid">
+                    <!-- General Policies -->
+                    <div class="card settings-card">
+                        <h3>General Policies</h3>
+                        <form id="general-settings-form">
+                            <div class="form-group">
+                                <label for="accrual-policy">Accrual Policy</label>
+                                <select id="accrual-policy">
+                                    <option value="annual">Annual (Granted at start of year)</option>
+                                    <option value="monthly">Monthly (Accrued each month)</option>
+                                </select>
+                                <small class="text-muted">Determines how employee balances are replenished.</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="auto-approve-threshold">Auto-Approve Threshold (Days)</label>
+                                <input type="number" id="auto-approve-threshold" min="0" max="30" value="0">
+                                <small class="text-muted">Requests up to this many days will be approved automatically. Set to 0 to require manual approval for all requests.</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save General Policies</button>
+                        </form>
+                    </div>
+
+                    <!-- Leave Types -->
+                    <div class="card settings-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="margin: 0;">Leave Types</h3>
+                            <button class="btn btn-sm btn-secondary" id="add-leave-type-btn">+ Add Type</button>
+                        </div>
+                        <div id="leave-types-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Review Leave Modal -->
+    <div class="modal-overlay" id="review-modal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-pretitle">Leave Approval Workflow</span>
+                    <h2 id="modal-heading">Review Leave Request</h2>
+                </div>
+                <button class="close-btn" id="close-modal" aria-label="Close modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Employee Header in Modal -->
+                <div class="employee-card-banner">
+                    <div class="emp-profile-left">
+                        <img id="modal-avatar" src="" alt="Employee" class="avatar-lg">
+                        <div>
+                            <h3 id="modal-name">Employee Name</h3>
+                            <p id="modal-role" class="text-muted">Role &bull; Department</p>
+                        </div>
+                    </div>
+                    <div class="emp-balances-mini" id="modal-balances-pills">
+                        <!-- Balance pills injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Overlap / Conflict Alert Notice -->
+                <div id="modal-overlap-alert" class="conflict-alert" style="display: none;">
+                    <div class="conflict-icon">⚠️</div>
+                    <div>
+                        <strong>Team Scheduling Notice</strong>
+                        <p id="modal-overlap-desc">Another team member is scheduled on leave during this period.</p>
+                    </div>
+                </div>
+                
+                <!-- Request Specific Details -->
+                <div class="leave-details">
+                    <div class="detail-group">
+                        <label>Leave Type</label>
+                        <p id="modal-type">Vacation</p>
+                    </div>
+                    <div class="detail-group">
+                        <label>Duration & Days</label>
+                        <p id="modal-dates">Oct 10, 2026 - Oct 12, 2026 (3 days)</p>
+                    </div>
+                    <div class="detail-group full-width">
+                        <label>Reason for Request</label>
+                        <p id="modal-reason" class="reason-text">Feeling unwell.</p>
+                    </div>
+                </div>
+
+                <!-- Employee Historical Record preview in Modal -->
+                <div class="modal-history-section">
+                    <h4>Employee Leave History</h4>
+                    <div id="modal-history-list" class="mini-history-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+                
+                <!-- Comments Form -->
+                <div class="review-actions">
+                    <label for="review-comments">Manager Comments / Reason for Decision</label>
+                    <textarea id="review-comments" placeholder="Provide feedback or justification for approval/rejection..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-review-btn">Cancel</button>
+                <button class="btn btn-danger" id="reject-btn">Reject Request</button>
+                <button class="btn btn-success" id="approve-btn">Approve Request</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Profile & History Modal -->
+    <div class="modal-overlay" id="profile-modal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <div>
+                    <span class="modal-pretitle">Team Member Profile</span>
+                    <h2 id="prof-modal-name">Employee Profile</h2>
+                </div>
+                <button class="close-btn" id="close-profile-modal" aria-label="Close modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="profile-summary-card">
+                    <img id="prof-modal-avatar" src="" alt="Avatar" class="avatar-xl">
+                    <div class="profile-info-block">
+                        <h3 id="prof-modal-fullname">Alex Mercer</h3>
+                        <p id="prof-modal-dept" class="text-muted">Engineering &bull; Frontend Developer</p>
+                        <div class="entitlements-row" id="prof-modal-entitlements">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-history-tabs">
+                    <h3>Leave History & Status Records</h3>
+                    <div class="profile-history-list" id="prof-modal-history">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="close-profile-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Assignment Modal -->
+    <div class="modal-overlay" id="task-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-pretitle">Task Management</span>
+                    <h2>Assign New Task</h2>
+                </div>
+                <button class="close-btn" id="close-task-modal" aria-label="Close modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="task-form">
+                    <div class="form-group">
+                        <label for="task-title">Task Title</label>
+                        <input type="text" id="task-title" required placeholder="E.g., Update Login Page UI">
+                    </div>
+                    <div class="form-group">
+                        <label for="task-assignee">Assignee</label>
+                        <select id="task-assignee" required>
+                            <option value="" disabled selected>Select a team member</option>
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                    
+                    <!-- Assignee Status Indicator -->
+                    <div id="assignee-status-indicator" class="info-alert" style="display: none; margin-bottom: 1rem;">
+                        <div class="conflict-icon">ℹ️</div>
+                        <div id="assignee-status-text"></div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-start">Start Date</label>
+                            <input type="date" id="task-start" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="task-end">End Date</label>
+                            <input type="date" id="task-end" required>
+                        </div>
+                    </div>
+
+                    <!-- Overlap / Conflict Alert Notice -->
+                    <div id="task-conflict-alert" class="conflict-alert" style="display: none; margin-bottom: 1rem;">
+                        <div class="conflict-icon">⚠️</div>
+                        <div>
+                            <strong>Scheduling Conflict Detected!</strong>
+                            <p id="task-conflict-desc">The selected team member is on leave during this period.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="task-desc">Description / Notes</label>
+                        <textarea id="task-desc" placeholder="Task details..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-task-btn">Cancel</button>
+                <button class="btn btn-primary" id="save-task-btn" type="submit" form="task-form">Assign Task</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>
+
+    <script src="store.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

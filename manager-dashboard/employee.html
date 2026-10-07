@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Leave Portal - Leave Flow</title>
+    <meta name="description" content="Employee portal to request leaves, view real-time status and history, check leave balances, and view upcoming team absences.">
+    <link rel="stylesheet" href="employee.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Main Navigation Header -->
+        <header class="header">
+            <div class="brand-group">
+                <div class="brand-logo">🏖️</div>
+                <div>
+                    <h1>Employee Portal</h1>
+                    <span class="badge-role">Time Off & Entitlements</span>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <a href="#team-calendar-section" class="nav-jump-btn">
+                    <span>📅 Team Calendar</span>
+                </a>
+                <a href="index.html" class="nav-portal-btn">
+                    <span>&larr; Switch to Manager View</span>
+                </a>
+                
+                <!-- Profile & Switcher -->
+                <div class="user-profile">
+                    <img id="user-avatar" src="https://i.pravatar.cc/150?img=12" alt="Employee Profile" class="avatar">
+                    <div class="user-details">
+                        <select id="employee-switcher" class="employee-select" title="Switch viewing employee profile">
+                            <option value="1">Alex Mercer (Frontend Dev)</option>
+                            <option value="2">Sarah Chen (Product Designer)</option>
+                            <option value="3">Marcus Johnson (Backend Eng)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="notifications-wrapper" style="position: relative; margin-left: 1rem;">
+                    <button id="notif-btn" class="nav-jump-btn" style="position: relative; background: transparent; padding: 0.5rem; font-size: 1.2rem;">
+                        🔔
+                        <span id="notif-badge" class="badge-count" style="position: absolute; top: 0; right: 0; transform: translate(50%, -50%); display: none; padding: 0.15rem 0.4rem; font-size: 0.7rem; background: var(--danger-color); color: white;">0</span>
+                    </button>
+                    <!-- Notification Dropdown -->
+                    <div id="notif-dropdown" class="notif-dropdown" style="display: none; position: absolute; right: 0; top: 100%; width: 320px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 100;">
+                        <div style="padding: 1rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; font-size: 1rem;">Notifications</h3>
+                            <button id="mark-all-read-btn" class="btn btn-sm btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Mark all read</button>
+                        </div>
+                        <div id="notif-list" style="max-height: 350px; overflow-y: auto;">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Employee Profile Summary Card -->
+            <div class="employee-hero-card">
+                <div class="emp-hero-left">
+                    <img id="hero-avatar" src="" alt="Employee Avatar" class="avatar-hero">
+                    <div class="emp-hero-meta">
+                        <h2 id="hero-name">Employee Name</h2>
+                        <p id="hero-role" class="text-muted">Role &bull; Department</p>
+                        <div class="hero-badges">
+                            <span class="badge-subtle">Manager: Jane Admin</span>
+                            <span class="badge-subtle" id="hero-status-summary">Loading status...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="balances-cards-container">
+                    <div class="balances-cards" id="balances-container">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upcoming Team Absences Widget (Coordination Feature) -->
+            <section class="section team-absences-section">
+                <div class="section-header">
+                    <div>
+                        <h2>Upcoming Team Absences</h2>
+                        <p class="section-sub">See who on your team is away so you can coordinate project coverage and deadlines</p>
+                    </div>
+                    <span class="badge-count" id="team-absence-count">0 Teammates Away</span>
+                </div>
+                <div class="team-absences-carousel" id="team-absences-list">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </section>
+
+            <!-- Team Availability & Coverage Calendar Section for Employee Planning -->
+            <section class="section calendar-section" id="team-calendar-section">
+                <div class="section-header">
+                    <div>
+                        <span class="section-tag">Work Scheduling & Capacity</span>
+                        <h2>Team Availability Calendar</h2>
+                        <p class="section-sub">Check scheduled coworker leaves and team coverage before requesting time off</p>
+                    </div>
+                    
+                    <div class="calendar-controls">
+                        <!-- Month Navigation -->
+                        <div class="month-nav-group">
+                            <button class="cal-nav-btn" id="emp-cal-prev" title="Previous Month">&larr;</button>
+                            <span class="cal-month-label" id="emp-cal-month-display">October 2026</span>
+                            <button class="cal-nav-btn" id="emp-cal-next" title="Next Month">&rarr;</button>
+                            <button class="cal-nav-btn cal-today-btn" id="emp-cal-today">Today</button>
+                        </div>
+                        
+                        <!-- View Toggle -->
+                        <div class="view-toggle-group">
+                            <button class="view-btn active" id="emp-view-timeline-btn" data-view="timeline">
+                                <span>📊 Matrix View</span>
+                            </button>
+                            <button class="view-btn" id="emp-view-month-btn" data-view="month">
+                                <span>📅 Month Grid</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coverage Health Summary Card -->
+                <div class="coverage-summary-bar" id="emp-coverage-summary">
+                    <!-- Dynamic stats -->
+                </div>
+
+                <!-- Calendar View Container -->
+                <div class="calendar-container">
+                    <!-- Timeline Matrix View -->
+                    <div id="emp-timeline-view" class="calendar-view-pane active">
+                        <div class="timeline-scroll-wrapper" id="emp-timeline-wrapper">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Month Grid View -->
+                    <div id="emp-month-view" class="calendar-view-pane" style="display: none;">
+                        <div class="month-grid-calendar" id="emp-month-grid-wrapper">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Legend -->
+                <div class="calendar-legend">
+                    <div class="legend-item">
+                        <span class="legend-dot dot-vacation"></span>
+                        <span>Vacation (Approved)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot dot-sick"></span>
+                        <span>Sick Leave (Approved)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot dot-personal"></span>
+                        <span>Personal Leave (Approved)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot dot-pending"></span>
+                        <span>Pending Request</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot dot-low-coverage"></span>
+                        <span>Reduced Coverage Alert</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Main Interactive Split: Form & History -->
+            <div class="split-layout">
+                <!-- Submit Request Form -->
+                <section class="form-section">
+                    <div class="card form-card">
+                        <div class="card-header-styled">
+                            <h2>Submit New Leave Request</h2>
+                            <p class="section-sub">Choose your dates and leave type to request manager approval</p>
+                        </div>
+                        
+                        <form id="leave-form" novalidate>
+                            <div class="form-group">
+                                <label for="leave-type">Leave Type</label>
+                                <select id="leave-type" required>
+                                    <option value="" disabled selected>Select a leave type</option>
+                                    <!-- Populated dynamically from Org Settings -->
+                                </select>
+                                <span class="error-msg" id="err-type"></span>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="start-date">Start Date</label>
+                                    <input type="date" id="start-date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="end-date">End Date</label>
+                                    <input type="date" id="end-date" required>
+                                </div>
+                            </div>
+                            <span class="error-msg" id="err-date"></span>
+
+                            <!-- Real-time Balance & Conflict Feedback -->
+                            <div id="request-preview-box" class="preview-box" style="display: none;">
+                                <div id="preview-duration-text" class="preview-text">Duration: 0 days</div>
+                                <div id="preview-overlap-text" class="preview-warning" style="display: none;"></div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="leave-reason">Reason for Request</label>
+                                <textarea id="leave-reason" placeholder="Provide context for your manager (minimum 10 characters)..." required></textarea>
+                                <span class="error-msg" id="err-reason"></span>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-full" id="submit-btn">
+                                <span>Submit Leave Request</span>
+                            </button>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- My Requests History & Live Status -->
+                <section class="history-section">
+                    <div class="history-card">
+                        <div class="history-card-header">
+                            <div>
+                                <h2>My Requests & Status</h2>
+                                <p class="section-sub">Track real-time approval status and manager comments</p>
+                            </div>
+                            <div class="history-filters" id="hist-filters">
+                                <button class="hist-filter-btn active" data-filter="all">All</button>
+                                <button class="hist-filter-btn" data-filter="pending">Pending</button>
+                                <button class="hist-filter-btn" data-filter="approved">Approved</button>
+                                <button class="hist-filter-btn" data-filter="rejected">Rejected</button>
+                            </div>
+                        </div>
+                        
+                        <div class="request-list" id="my-requests-list">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>
+
+    <!-- Pre-existing basic toast -->
+    <div id="toast" class="toast">
+        <span class="toast-icon">✓</span>
+        <span id="toast-message">Request submitted successfully!</span>
+    </div>
+
+    <script src="store.js"></script>
+    <script src="employee.js"></script>
+</body>
+</html>
