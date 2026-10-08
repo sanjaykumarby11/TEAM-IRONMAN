@@ -11,6 +11,10 @@ A simple beginner-friendly employee and leave management system built with HTML,
 - Leave history with status filters
 - Employee profile editing
 - Manager approval and rejection workflow
+- Manager team overview with pending leave and current/upcoming approved absences
+- Role-based access for employees, managers, and administrators
+- Manager access limited to assigned direct reports
+- Administrator employee profile editing, role controls, and manager assignment
 - SQLite database storage
 - Password hashing with bcrypt
 - Responsive dashboard UI
@@ -60,6 +64,18 @@ http://localhost:3000
 
 - Employee: Employee ID or Email: `employee` or `employee@example.com`; Password: `1234`
 - Manager: Employee ID or Email: `manager` or `manager@example.com`; Password: `1234`
+- Administrator: Employee ID or Email: `admin` or `admin@example.com`; Password: `1234`
+
+## Access rules
+
+- Employees can view and update their own profile, leave balance, and leave requests. They cannot access manager review or administrator features.
+- Managers can use employee features for their own account and review only pending leave requests from employees assigned directly to them. They cannot access other teams or change roles.
+- Administrators can review all pending leave requests, view all employee records, and assign employee/manager/administrator roles. They can assign employees to managers. An administrator cannot change their own role, and a manager cannot be demoted while they still have direct reports.
+- The manager view combines assigned employees' contact details, pending request counts, availability, and current/upcoming approved absences. Administrators can use the same view across employees.
+- The API reloads the account role from SQLite on every authenticated request. Role checks and record scoping are enforced on the server; hiding navigation is only a user-interface convenience.
+- Leave attachments require authentication and are available only to their owner, that employee's direct manager, or an administrator.
+
+New employee registrations start as unassigned employees. An administrator can assign them to a manager from the Administration view. Existing demo employee/manager records are linked during database initialization.
 
 ## How frontend connects to backend
 
@@ -90,7 +106,8 @@ The `sqlite3` Node.js package provides the connection and executes SQL queries. 
 - Passwords are hashed with bcrypt before being saved.
 - Login returns a JWT.
 - Protected API routes check the JWT in an authentication middleware.
-- Manager-only routes check the employee role before allowing changes.
+- Manager and administrator routes check the current database role before allowing changes.
+- Manager queries are scoped to assigned direct reports; employee leave and profile queries are scoped to the signed-in account.
 
 ## Simple viva explanation
 

@@ -37,6 +37,7 @@
           <div class="demo-box">
             <p>Demo employee: <strong>employee / 1234</strong></p>
             <p>Demo manager: <strong>manager / 1234</strong></p>
+            <p>Demo administrator: <strong>admin / 1234</strong></p>
           </div>
         </form>
 
@@ -93,6 +94,7 @@
           <button class="nav-btn" data-view="leaveHistory" type="button">Leave History</button>
           <button class="nav-btn" data-view="profile" type="button">My Profile</button>
           <button id="managerNav" class="nav-btn hidden" data-view="manager" type="button">Manager</button>
+          <button id="adminNav" class="nav-btn hidden" data-view="admin" type="button">Administration</button>
         </nav>
         <button id="logoutBtn" class="logout-btn" type="button">Logout</button>
       </aside>
@@ -259,6 +261,30 @@
           <div class="section-header">
             <div>
               <p class="eyebrow">Manager</p>
+              <h3>Team Availability</h3>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Department</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Availability</th>
+                  <th>Pending Requests</th>
+                  <th>Current / Next Approved Absence</th>
+                </tr>
+              </thead>
+              <tbody id="teamAvailabilityBody"></tbody>
+            </table>
+          </div>
+          <p id="teamAvailabilityEmpty" class="empty-message hidden">No employees are assigned to this team.</p>
+
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Leave review</p>
               <h3>Pending Leave Requests</h3>
             </div>
           </div>
@@ -280,6 +306,35 @@
             </table>
           </div>
           <p id="managerEmpty" class="empty-message hidden">No pending leave requests.</p>
+        </section>
+
+        <section id="adminView" class="view-section hidden">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Administrator</p>
+              <h3>Employee Access</h3>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Employee ID</th>
+                  <th>Email</th>
+                  <th>Department</th>
+                  <th>Phone</th>
+                  <th>Role</th>
+                  <th>Direct Manager</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="adminTableBody"></tbody>
+            </table>
+          </div>
+          <p id="adminError" class="error-message" role="alert"></p>
+          <p id="adminSuccess" class="success-message" role="status"></p>
+          <p id="adminEmpty" class="empty-message hidden">No employees found.</p>
         </section>
       </div>
     </div>

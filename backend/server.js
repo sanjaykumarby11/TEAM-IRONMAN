@@ -8,7 +8,7 @@ const sqlite3 = require("sqlite3").verbose();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DB_PATH = path.join(__dirname, "employee_leave.db");
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, "employee_leave.db");
 const JWT_SECRET = process.env.JWT_SECRET || "employee-leave-management-demo-secret";
 const UPLOAD_DIR = path.join(__dirname, "uploads");
 
@@ -21,7 +21,8 @@ const db = new sqlite3.Database(DB_PATH);
 const storage = multer.diskStorage({
   destination: (req, file, callback) => callback(null, UPLOAD_DIR),
   filename: (req, file, callback) => {
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}-${file.originalname.replace(/\s+/g, "-")}`;
+    const safeOriginalName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "-");
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}-${safeOriginalName}`;
     callback(null, uniqueName);
   }
 });
@@ -81,7 +82,8 @@ function initializeDatabase() {
           department TEXT NOT NULL,
           phone TEXT NOT NULL,
           password TEXT NOT NULL,
-          role TEXT NOT NULL DEFAULT 'employee'
+          role TEXT NOT NULL DEFAULT 'employee',
+          manager_id INTEGER REFERENCES employees(id)
         )
       `);
 
@@ -113,7 +115,29 @@ function initializeDatabase() {
 
       db.run(`CREATE INDEX IF NOT EXISTS idx_leave_requests_employee ON leave_requests(employee_id)`, (err) => {
         if (err) reject(err);
-        else resolve();
+        else {
+          db.all("PRAGMA table_info(employees)", (tableError, columns) => {
+            if (tableError) {
+              reject(tableError);
+              return;
+            }
+
+            const hasManagerId = columns.some((column) => column.name === "manager_id");
+            const addManagerColumn = hasManagerId
+              ? Promise.resolve()
+              : new Promise((migrationResolve, migrationReject) => {
+                  db.run("ALTER TABLE employees ADD COLUMN manager_id INTEGER REFERENCES employees(id)", (migrationError) => {
+                    if (migrationError) migrationReject(migrationError);
+                    else migrationResolve();
+                  });
+                });
+
+            addManagerColumn
+              .then(() => run("CREATE INDEX IF NOT EXISTS idx_employees_manager ON employees(manager_id)"))
+              .then(resolve)
+              .catch(reject);
+          });
+        }
       });
     });
   });
@@ -131,18 +155,37 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({ message: "Authentication required." });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, JWT_SECRET, async (err, decoded) => {
     if (err) {
       return res.status(403).json({ message: "Invalid or expired token." });
     }
-    req.user = decoded;
-    next();
+
+    try {
+      const user = await get("SELECT id, employee_id, name, role, manager_id FROM employees WHERE id = ?", [decoded.id]);
+      if (!user) {
+        return res.status(401).json({ message: "Account no longer exists." });
+      }
+      req.user = user;
+      next();
+    } catch (error) {
+      console.error("Authentication lookup error:", error);
+      res.status(500).json({ message: "Unable to authenticate request." });
+    }
   });
 }
 
-function requireManager(req, res, next) {
-  if (req.user.role !== "manager") {
-    return res.status(403).json({ message: "Manager access required." });
+function requireRole(...allowedRoles) {
+  return (req, res, next) => {
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: "Your role does not have access to this feature." });
+    }
+    next();
+  };
+}
+
+function requireAdmin(req, res, next) {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ message: "Administrator access required." });
   }
   next();
 }
@@ -156,21 +199,45 @@ function calculateLeaveDays(fromDate, toDate) {
 }
 
 async function createDefaultData() {
-  const employeeExists = await get("SELECT id FROM employees WHERE employee_id = ?", ["employee"]);
-  if (!employeeExists) {
-    const employeePassword = await bcrypt.hash("1234", 10);
-    const managerPassword = await bcrypt.hash("1234", 10);
-
-    const employee = await run(
+  let manager = await get("SELECT id FROM employees WHERE employee_id = ?", ["manager"]);
+  if (!manager) {
+    const password = await bcrypt.hash("1234", 10);
+    const result = await run(
       "INSERT INTO employees (name, employee_id, email, department, phone, password, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      ["Demo Employee", "employee", "employee@example.com", "Development", "9876543210", employeePassword, "employee"]
+      ["Demo Manager", "manager", "manager@example.com", "Human Resources", "9876543211", password, "manager"]
     );
-    await run("INSERT INTO leave_balances (employee_id, total_leave, used_leave) VALUES (?, ?, ?)", [employee.id, 20, 0]);
+    manager = { id: result.id };
+  }
 
+  const employee = await get("SELECT id FROM employees WHERE employee_id = ?", ["employee"]);
+  if (!employee) {
+    const password = await bcrypt.hash("1234", 10);
+    const result = await run(
+      "INSERT INTO employees (name, employee_id, email, department, phone, password, role, manager_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      ["Demo Employee", "employee", "employee@example.com", "Development", "9876543210", password, "employee", manager.id]
+    );
+    await run("INSERT INTO leave_balances (employee_id, total_leave, used_leave) VALUES (?, ?, ?)", [result.id, 20, 0]);
+  } else {
+    await run("UPDATE employees SET manager_id = ? WHERE id = ? AND manager_id IS NULL", [manager.id, employee.id]);
+  }
+
+  const admin = await get("SELECT id FROM employees WHERE employee_id = ?", ["admin"]);
+  if (!admin) {
+    const password = await bcrypt.hash("1234", 10);
     await run(
       "INSERT INTO employees (name, employee_id, email, department, phone, password, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      ["Demo Manager", "manager", "manager@example.com", "Human Resources", "9876543211", managerPassword, "manager"]
+      ["Demo Administrator", "admin", "admin@example.com", "Operations", "9876543212", password, "admin"]
     );
+  }
+
+  const missingBalances = await all(`
+    SELECT e.id
+    FROM employees e
+    LEFT JOIN leave_balances lb ON lb.employee_id = e.id
+    WHERE lb.id IS NULL
+  `);
+  for (const employeeWithoutBalance of missingBalances) {
+    await run("INSERT INTO leave_balances (employee_id, total_leave, used_leave) VALUES (?, ?, ?)", [employeeWithoutBalance.id, 20, 0]);
   }
 }
 
@@ -348,31 +415,102 @@ app.get("/api/leaves", authenticateToken, async (req, res) => {
   }
 });
 
-app.get("/api/manager/leaves", authenticateToken, requireManager, async (req, res) => {
+app.get("/api/manager/leaves", authenticateToken, requireRole("manager", "admin"), async (req, res) => {
   try {
-    const rows = await all(`
+    let sql = `
       SELECT lr.id, lr.leave_type, lr.from_date, lr.to_date, lr.reason, lr.status, lr.manager_comment, lr.created_at,
              e.name AS employee_name, e.employee_id
       FROM leave_requests lr
       INNER JOIN employees e ON e.id = lr.employee_id
       WHERE lr.status = 'Pending'
-      ORDER BY lr.created_at ASC
-    `);
-    res.json(rows);
+    `;
+    const params = [];
+    if (req.user.role === "manager") {
+      sql += " AND e.manager_id = ?";
+      params.push(req.user.id);
+    }
+    sql += " ORDER BY lr.created_at ASC";
+    res.json(await all(sql, params));
   } catch (error) {
     console.error("Manager leave list error:", error);
     res.status(500).json({ message: "Unable to load pending leaves." });
   }
 });
 
-app.put("/api/manager/leaves/:id", authenticateToken, requireManager, async (req, res) => {
+app.get("/api/manager/team", authenticateToken, requireRole("manager", "admin"), async (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    let sql = `
+      SELECT e.id, e.name, e.employee_id, e.email, e.department, e.phone,
+             lr.id AS leave_id, lr.leave_type, lr.from_date, lr.to_date, lr.status
+      FROM employees e
+      LEFT JOIN leave_requests lr ON lr.employee_id = e.id
+        AND (lr.status = 'Pending' OR (lr.status = 'Approved' AND lr.to_date >= ?))
+      WHERE e.role = 'employee'
+    `;
+    const params = [today];
+    if (req.user.role === "manager") {
+      sql += " AND e.manager_id = ?";
+      params.push(req.user.id);
+    }
+    sql += " ORDER BY e.name COLLATE NOCASE, lr.from_date";
+
+    const rows = await all(sql, params);
+    const employees = new Map();
+    rows.forEach((row) => {
+      if (!employees.has(row.id)) {
+        employees.set(row.id, {
+          id: row.id,
+          name: row.name,
+          employeeId: row.employee_id,
+          email: row.email,
+          department: row.department,
+          phone: row.phone,
+          pendingRequests: [],
+          approvedAbsences: []
+        });
+      }
+
+      if (!row.leave_id) return;
+      const employee = employees.get(row.id);
+      const absence = { leaveType: row.leave_type, fromDate: row.from_date, toDate: row.to_date };
+      if (row.status === "Pending") employee.pendingRequests.push(absence);
+      else employee.approvedAbsences.push(absence);
+    });
+
+    const team = Array.from(employees.values()).map((employee) => {
+      employee.approvedAbsences.sort((first, second) => first.fromDate.localeCompare(second.fromDate));
+      const isOnLeave = employee.approvedAbsences.some((absence) => absence.fromDate <= today && absence.toDate >= today);
+      const upcomingAbsence = employee.approvedAbsences.find((absence) => absence.fromDate > today) || null;
+      employee.availability = isOnLeave ? "On leave"
+        : employee.pendingRequests.length ? "Pending request"
+          : upcomingAbsence ? "Upcoming leave" : "Available";
+      employee.upcomingAbsence = upcomingAbsence;
+      return employee;
+    });
+
+    res.json({ team, asOf: today });
+  } catch (error) {
+    console.error("Manager team overview error:", error);
+    res.status(500).json({ message: "Unable to load team availability." });
+  }
+});
+
+app.put("/api/manager/leaves/:id", authenticateToken, requireRole("manager", "admin"), async (req, res) => {
   try {
     const { status, managerComment } = req.body;
     if (!status || !["Approved", "Rejected"].includes(status)) {
       return res.status(400).json({ message: "A valid status is required." });
     }
 
-    const leaveRequest = await get("SELECT * FROM leave_requests WHERE id = ?", [req.params.id]);
+    const leaveRequest = req.user.role === "admin"
+      ? await get("SELECT * FROM leave_requests WHERE id = ?", [req.params.id])
+      : await get(`
+          SELECT lr.*
+          FROM leave_requests lr
+          INNER JOIN employees e ON e.id = lr.employee_id
+          WHERE lr.id = ? AND e.manager_id = ?
+        `, [req.params.id, req.user.id]);
     if (!leaveRequest) {
       return res.status(404).json({ message: "Leave request not found." });
     }
@@ -402,7 +540,117 @@ app.put("/api/manager/leaves/:id", authenticateToken, requireManager, async (req
   }
 });
 
-app.use("/uploads", express.static(UPLOAD_DIR));
+app.get("/api/admin/employees", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const employees = await all(`
+      SELECT e.id, e.name, e.employee_id, e.email, e.department, e.phone, e.role, e.manager_id,
+             m.name AS manager_name
+      FROM employees e
+      LEFT JOIN employees m ON m.id = e.manager_id
+      ORDER BY e.name COLLATE NOCASE
+    `);
+    const managers = await all("SELECT id, name, employee_id FROM employees WHERE role = 'manager' ORDER BY name COLLATE NOCASE");
+    res.json({ employees, managers });
+  } catch (error) {
+    console.error("Administrator employee list error:", error);
+    res.status(500).json({ message: "Unable to load employee access settings." });
+  }
+});
+
+app.put("/api/admin/employees/:id", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const employeeId = Number(req.params.id);
+    const { role } = req.body;
+    if (!Number.isSafeInteger(employeeId) || employeeId <= 0) {
+      return res.status(400).json({ message: "A valid employee ID is required." });
+    }
+    if (!["employee", "manager", "admin"].includes(role)) {
+      return res.status(400).json({ message: "Role must be employee, manager, or admin." });
+    }
+
+    const employee = await get("SELECT id, role, name, email, department, phone, manager_id FROM employees WHERE id = ?", [employeeId]);
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found." });
+    }
+
+    if (employeeId === req.user.id && role !== employee.role) {
+      return res.status(400).json({ message: "You cannot change your own access role." });
+    }
+
+    const name = String(req.body.name ?? employee.name).trim();
+    const email = String(req.body.email ?? employee.email).trim().toLowerCase();
+    const department = String(req.body.department ?? employee.department).trim();
+    const phone = String(req.body.phone ?? employee.phone).trim();
+    if (!name || !email || !department || !phone || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: "Enter a valid name, email, department, and phone number." });
+    }
+    const existingEmail = await get("SELECT id FROM employees WHERE email = ? AND id != ?", [email, employeeId]);
+    if (existingEmail) {
+      return res.status(409).json({ message: "Another employee already uses this email." });
+    }
+
+    const managerIdValue = req.body.managerId;
+    const managerId = managerIdValue === undefined
+      ? employee.manager_id
+      : managerIdValue === null || managerIdValue === "" ? null
+      : Number(managerIdValue);
+    if (role === "employee" && managerId !== null) {
+      if (!Number.isSafeInteger(managerId) || managerId <= 0 || managerId === employeeId) {
+        return res.status(400).json({ message: "Choose a valid manager." });
+      }
+      const manager = await get("SELECT id FROM employees WHERE id = ? AND role = 'manager'", [managerId]);
+      if (!manager) {
+        return res.status(400).json({ message: "Employees can only be assigned to an active manager." });
+      }
+    }
+
+    if (employee.role === "manager" && role !== "manager") {
+      const reports = await get("SELECT COUNT(*) AS count FROM employees WHERE manager_id = ?", [employeeId]);
+      if (reports.count > 0) {
+        return res.status(409).json({ message: "Reassign this manager's direct reports before changing their role." });
+      }
+    }
+
+    await run(
+      "UPDATE employees SET name = ?, email = ?, department = ?, phone = ?, role = ?, manager_id = ? WHERE id = ?",
+      [name, email, department, phone, role, role === "employee" ? managerId : null, employeeId]
+    );
+    res.json({ message: "Employee record and access updated successfully." });
+  } catch (error) {
+    console.error("Administrator employee update error:", error);
+    res.status(500).json({ message: "Unable to update employee record." });
+  }
+});
+
+app.get("/uploads/:filename", authenticateToken, async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    if (path.basename(filename) !== filename) {
+      return res.status(404).json({ message: "Attachment not found." });
+    }
+
+    const owner = await get(`
+      SELECT e.id, e.manager_id
+      FROM leave_requests lr
+      INNER JOIN employees e ON e.id = lr.employee_id
+      WHERE lr.attachment = ?
+    `, [filename]);
+    if (!owner) {
+      return res.status(404).json({ message: "Attachment not found." });
+    }
+    const canView = req.user.role === "admin"
+      || owner.id === req.user.id
+      || (req.user.role === "manager" && owner.manager_id === req.user.id);
+    if (!canView) {
+      return res.status(403).json({ message: "You do not have access to this attachment." });
+    }
+
+    res.sendFile(path.join(UPLOAD_DIR, filename));
+  } catch (error) {
+    console.error("Attachment access error:", error);
+    res.status(500).json({ message: "Unable to load attachment." });
+  }
+});
 app.use(express.static(path.join(__dirname, "..", "frontend")));
 
 app.get("/*", (req, res) => {
