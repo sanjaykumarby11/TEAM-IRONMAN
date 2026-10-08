@@ -101,6 +101,34 @@ An enterprise-grade, full-stack **Employee Leave & Task Management System** desi
 
 ## 🚀 Quick Start & How to Run
 
+### Task Management module
+
+The Taskspace Employee Task Management module is available in `backend/app/` and `frontend/`.
+It uses FastAPI and SQLite for the REST API, with a React/Vite frontend.
+
+Start the API in one terminal:
+
+```powershell
+cd backend
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+Start the frontend in a second terminal:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open the URL printed by Vite (normally `http://127.0.0.1:5173`). The API documentation is at
+`http://127.0.0.1:8000/docs`. Sample task and employee data are added automatically on first
+startup. For module features and API details, see the Task Management section and route
+documentation in the source tree.
+
 ### 1. Run the Backend & Application Server
 From the project root:
 ```bash
