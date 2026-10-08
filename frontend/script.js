@@ -12,12 +12,19 @@ const leaveHistoryBody = document.getElementById("leaveHistoryBody");
 const historyEmpty = document.getElementById("historyEmpty");
 const managerTableBody = document.getElementById("managerTableBody");
 const managerEmpty = document.getElementById("managerEmpty");
+const teamAvailabilityBody = document.getElementById("teamAvailabilityBody");
+const teamAvailabilityEmpty = document.getElementById("teamAvailabilityEmpty");
 const profileForm = document.getElementById("profileForm");
 const profileError = document.getElementById("profileError");
 const profileSuccess = document.getElementById("profileSuccess");
 const userName = document.getElementById("userName");
 const userRole = document.getElementById("userRole");
 const managerNav = document.getElementById("managerNav");
+const adminNav = document.getElementById("adminNav");
+const adminTableBody = document.getElementById("adminTableBody");
+const adminError = document.getElementById("adminError");
+const adminSuccess = document.getElementById("adminSuccess");
+const adminEmpty = document.getElementById("adminEmpty");
 
 const state = {
   token: localStorage.getItem("employeeLeaveToken") || "",
@@ -31,6 +38,10 @@ function setError(element, message) {
 
 function setSuccess(element, message) {
   element.textContent = message || "";
+}
+
+function roleLabel(role) {
+  return role === "admin" ? "Administrator" : role === "manager" ? "Manager" : "Employee";
 }
 
 function saveSession(token, user) {
@@ -89,6 +100,8 @@ function showMainApp() {
 }
 
 function setActiveView(viewName) {
+  if (viewName === "manager" && !["manager", "admin"].includes(state.user?.role)) return;
+  if (viewName === "admin" && state.user?.role !== "admin") return;
   state.activeView = viewName;
   document.querySelectorAll(".view-section").forEach((section) => section.classList.add("hidden"));
   document.getElementById(`${viewName}View`).classList.remove("hidden");
@@ -164,13 +177,174 @@ async function loadManagerLeaves() {
   managerEmpty.classList.toggle("hidden", leaves.length > 0);
 }
 
+async function loadManagerTeam() {
+  const { team } = await apiRequest("/api/manager/team");
+  teamAvailabilityBody.replaceChildren();
+
+  team.forEach((employee) => {
+    const row = document.createElement("tr");
+    const identity = document.createElement("td");
+    identity.textContent = `${employee.name} (${employee.employeeId})`;
+
+    const department = document.createElement("td");
+    department.textContent = employee.department;
+
+    const email = document.createElement("td");
+    email.textContent = employee.email;
+
+    const phone = document.createElement("td");
+    phone.textContent = employee.phone;
+
+    const availability = document.createElement("td");
+    const badge = document.createElement("span");
+    badge.className = "status-badge";
+    if (["On leave", "Upcoming leave"].includes(employee.availability)) badge.classList.add("approved");
+    if (employee.availability === "Pending request") badge.classList.add("pending");
+    badge.textContent = employee.availability;
+    availability.appendChild(badge);
+
+    const pending = document.createElement("td");
+    pending.textContent = String(employee.pendingRequests.length);
+
+    const absence = document.createElement("td");
+    const currentAbsence = employee.approvedAbsences.find((leave) => {
+      const today = new Date().toISOString().slice(0, 10);
+      return leave.fromDate <= today && leave.toDate >= today;
+    });
+    const nextAbsence = currentAbsence || employee.upcomingAbsence;
+    absence.textContent = nextAbsence
+      ? `${nextAbsence.leaveType}: ${formatDate(nextAbsence.fromDate)} - ${formatDate(nextAbsence.toDate)}`
+      : "None scheduled";
+
+    row.append(identity, department, email, phone, availability, pending, absence);
+    teamAvailabilityBody.appendChild(row);
+  });
+
+  teamAvailabilityEmpty.classList.toggle("hidden", team.length > 0);
+}
+
+async function loadAdminEmployees() {
+  const data = await apiRequest("/api/admin/employees");
+  adminTableBody.replaceChildren();
+
+  data.employees.forEach((employee) => {
+    const row = document.createElement("tr");
+    const isSelf = employee.id === state.user.id;
+    const nameCell = document.createElement("td");
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.dataset.field = "name";
+    nameInput.value = employee.name;
+    nameInput.disabled = isSelf;
+    nameCell.appendChild(nameInput);
+
+    const idCell = document.createElement("td");
+    idCell.textContent = employee.employee_id;
+
+    const emailCell = document.createElement("td");
+    const emailInput = document.createElement("input");
+    emailInput.type = "email";
+    emailInput.dataset.field = "email";
+    emailInput.value = employee.email;
+    emailInput.disabled = isSelf;
+    emailCell.appendChild(emailInput);
+
+    const departmentCell = document.createElement("td");
+    const departmentInput = document.createElement("input");
+    departmentInput.type = "text";
+    departmentInput.dataset.field = "department";
+    departmentInput.value = employee.department;
+    departmentInput.disabled = isSelf;
+    departmentCell.appendChild(departmentInput);
+
+    const phoneCell = document.createElement("td");
+    const phoneInput = document.createElement("input");
+    phoneInput.type = "tel";
+    phoneInput.dataset.field = "phone";
+    phoneInput.value = employee.phone;
+    phoneInput.disabled = isSelf;
+    phoneCell.appendChild(phoneInput);
+
+    const roleCell = document.createElement("td");
+    const roleSelect = document.createElement("select");
+    roleSelect.dataset.field = "role";
+    ["employee", "manager", "admin"].forEach((role) => {
+      const option = document.createElement("option");
+      option.value = role;
+      option.textContent = roleLabel(role);
+      roleSelect.appendChild(option);
+    });
+    roleSelect.value = employee.role;
+    roleSelect.disabled = isSelf;
+    roleCell.appendChild(roleSelect);
+
+    const managerCell = document.createElement("td");
+    const managerSelect = document.createElement("select");
+    managerSelect.dataset.field = "manager";
+    const unassigned = document.createElement("option");
+    unassigned.value = "";
+    unassigned.textContent = "Unassigned";
+    managerSelect.appendChild(unassigned);
+    data.managers.forEach((manager) => {
+      const option = document.createElement("option");
+      option.value = manager.id;
+      option.textContent = `${manager.name} (${manager.employee_id})`;
+      managerSelect.appendChild(option);
+    });
+    managerSelect.value = employee.manager_id || "";
+    managerSelect.disabled = employee.role !== "employee" || isSelf;
+    roleSelect.addEventListener("change", () => {
+      managerSelect.disabled = roleSelect.value !== "employee" || isSelf;
+    });
+    managerCell.appendChild(managerSelect);
+
+    const actionCell = document.createElement("td");
+    const saveButton = document.createElement("button");
+    saveButton.type = "button";
+    saveButton.className = "secondary-btn";
+    saveButton.textContent = "Save";
+    saveButton.dataset.employeeId = employee.id;
+    saveButton.disabled = isSelf;
+    actionCell.appendChild(saveButton);
+
+    row.append(nameCell, idCell, emailCell, departmentCell, phoneCell, roleCell, managerCell, actionCell);
+    adminTableBody.appendChild(row);
+  });
+
+  adminEmpty.classList.toggle("hidden", data.employees.length > 0);
+}
+
+async function updateEmployeeAccess(button) {
+  setError(adminError, "");
+  setSuccess(adminSuccess, "");
+  const row = button.closest("tr");
+
+  try {
+    const response = await apiRequest(`/api/admin/employees/${button.dataset.employeeId}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        name: row.querySelector('[data-field="name"]').value,
+        email: row.querySelector('[data-field="email"]').value,
+        department: row.querySelector('[data-field="department"]').value,
+        phone: row.querySelector('[data-field="phone"]').value,
+        role: row.querySelector('[data-field="role"]').value,
+        managerId: row.querySelector('[data-field="manager"]').value
+      })
+    });
+    setSuccess(adminSuccess, response.message);
+    await loadAdminEmployees();
+  } catch (error) {
+    setError(adminError, error.message);
+  }
+}
+
 async function updateManagerLeave(id, status) {
   const response = await apiRequest(`/api/manager/leaves/${id}`, {
     method: "PUT",
     body: JSON.stringify({ status, managerComment: "" })
   });
   setSuccess(document.getElementById("managerEmpty"), response.message);
-  await loadManagerLeaves();
+  await Promise.all([loadManagerLeaves(), loadManagerTeam()]);
   await loadDashboard();
 }
 
@@ -181,13 +355,20 @@ async function initializeApp() {
   }
 
   userName.textContent = state.user.name;
-  userRole.textContent = state.user.role === "manager" ? "Manager" : "Employee";
-  managerNav.classList.toggle("hidden", state.user.role !== "manager");
+  userRole.textContent = roleLabel(state.user.role);
+  managerNav.classList.toggle("hidden", !["manager", "admin"].includes(state.user.role));
+  adminNav.classList.toggle("hidden", state.user.role !== "admin");
   showMainApp();
   setActiveView("dashboard");
 
   try {
-    await Promise.all([loadDashboard(), loadLeaveHistory(), loadProfile(), state.user.role === "manager" ? loadManagerLeaves() : Promise.resolve()]);
+    await Promise.all([
+      loadDashboard(),
+      loadLeaveHistory(),
+      loadProfile(),
+      ["manager", "admin"].includes(state.user.role) ? Promise.all([loadManagerTeam(), loadManagerLeaves()]) : Promise.resolve(),
+      state.user.role === "admin" ? loadAdminEmployees() : Promise.resolve()
+    ]);
   } catch (error) {
     clearSession();
     showAuthView();
@@ -211,8 +392,9 @@ async function handleLogin(event) {
 
     saveSession(response.token, response.user);
     userName.textContent = response.user.name;
-    userRole.textContent = response.user.role === "manager" ? "Manager" : "Employee";
-    managerNav.classList.toggle("hidden", response.user.role !== "manager");
+    userRole.textContent = roleLabel(response.user.role);
+    managerNav.classList.toggle("hidden", !["manager", "admin"].includes(response.user.role));
+    adminNav.classList.toggle("hidden", response.user.role !== "admin");
     showMainApp();
     setActiveView("dashboard");
     await initializeApp();
@@ -326,9 +508,12 @@ function attachEventListeners() {
   historyFilter.addEventListener("change", loadLeaveHistory);
   document.querySelectorAll(".toggle-btn").forEach((button) => button.addEventListener("click", handleAuthToggle));
   document.querySelectorAll(".nav-btn").forEach((button) => button.addEventListener("click", () => {
-    if (button.dataset.view === "manager" && state.user.role !== "manager") return;
     setActiveView(button.dataset.view);
   }));
+  adminTableBody.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-employee-id]");
+    if (button) updateEmployeeAccess(button);
+  });
   document.getElementById("logoutBtn").addEventListener("click", () => {
     clearSession();
     showAuthView();
