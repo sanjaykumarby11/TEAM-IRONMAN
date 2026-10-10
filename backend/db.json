@@ -1,0 +1,55 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "role": "admin",
+      "name": "Jane Admin",
+      "password_hash": "pbkdf2_sha256$zRApn_lQ80XrnBHafSMf4w==$R1_qAERFSuJGRh0GK0FP0_9BWJ6U1sNDvjRZAjbuWUo="
+    },
+    {
+      "id": 2,
+      "username": "alex",
+      "role": "employee",
+      "name": "Alex Mercer",
+      "password_hash": "pbkdf2_sha256$dRZ3gyhftgiU7TM4Y-9FkQ==$kSW1sI86fSCjt79rSU4DfLmdCVUW_5rBZTQXD_mJi6A="
+    },
+    {
+      "id": 3,
+      "username": "sam",
+      "password": "password",
+      "role": "manager",
+      "name": "Sam Smith"
+    }
+  ],
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Design Task Details Screen",
+      "description": "Create a comprehensive view",
+      "assignee_id": 1,
+      "status": "in-progress",
+      "priority": "high",
+      "due_date": "2026-10-10"
+    },
+    {
+      "id": 2,
+      "title": "Implement Employee Management View",
+      "description": "Build a directory",
+      "assignee_id": 2,
+      "status": "todo",
+      "priority": "medium",
+      "due_date": "2026-10-15"
+    }
+  ],
+  "leaves": [
+    {
+      "id": 1,
+      "employee_id": 2,
+      "start_date": "2026-10-12",
+      "end_date": "2026-10-14",
+      "reason": "Vacation",
+      "status": "pending"
+    }
+  ]
+}
